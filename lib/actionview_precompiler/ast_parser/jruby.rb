@@ -89,7 +89,14 @@ module ActionviewPrecompiler
     METHODS_TO_PARSE = %i(render render_to_string layout)
 
     def parse_render_nodes(code)
-      node = Node.wrap(JRuby.parse(code))
+      # Wrap in a method definition so that `yield` (from compiled
+      # layout templates like `<%= yield %>`) is valid syntax.
+      # Try bare parse first since wrapping disallows class/module defs.
+      begin
+        node = Node.wrap(JRuby.parse(code))
+      rescue SyntaxError
+        node = Node.wrap(JRuby.parse("def __avp;#{code}\nend"))
+      end
 
       renders = extract_render_nodes(node)
       renders.group_by(&:first).collect do |method, nodes|

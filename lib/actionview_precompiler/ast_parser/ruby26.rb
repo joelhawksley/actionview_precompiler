@@ -123,7 +123,14 @@ module ActionviewPrecompiler
     end
 
     def parse(code)
-      Node.wrap(RubyVM::AbstractSyntaxTree.parse(code))
+      # Wrap in a method definition so that `yield` (from compiled
+      # layout templates like `<%= yield %>`) is valid syntax.
+      # Try bare parse first since wrapping disallows class/module defs.
+      begin
+        Node.wrap(RubyVM::AbstractSyntaxTree.parse(code))
+      rescue SyntaxError
+        Node.wrap(RubyVM::AbstractSyntaxTree.parse("def __avp;#{code}\nend"))
+      end
     end
 
     def node?(node)
