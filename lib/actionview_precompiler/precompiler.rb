@@ -2,15 +2,17 @@ require "actionview_precompiler/template_scanner"
 require "actionview_precompiler/controller_scanner"
 require "actionview_precompiler/helper_scanner"
 require "actionview_precompiler/template_loader"
+require "actionview_precompiler/cache"
 
 module ActionviewPrecompiler
   class Precompiler
-    def initialize(verbose: false)
+    def initialize(verbose: false, cache_path: nil)
       @scanners = []
       @loader = TemplateLoader.new
       @verbose = verbose
       @static_templates = []
       @template_renders = nil
+      @cache_path = cache_path
     end
 
     def scan_view_dir(view_dir)
@@ -31,17 +33,17 @@ module ActionviewPrecompiler
     end
 
     def run
-      count = 0
-      template_renders.each do |virtual_path, locals|
-        debug "precompiling: #{virtual_path}"
-
-        templates = @loader.load_template(virtual_path, locals)
-        count += templates.count
-
-        debug "  No templates found at #{virtual_path}" if templates.empty?
+      if @cache_path
+        cache = Cache.new(@cache_path)
+        if cache_data = cache.read
+          run_from_cache(cache_data)
+        else
+          run_fresh
+          write_cache(cache)
+        end
+      else
+        run_fresh
       end
-
-      debug "Precompiled #{count} Templates"
     end
 
     def template_renders
@@ -61,6 +63,54 @@ module ActionviewPrecompiler
     end
 
     private
+
+    def run_fresh
+      count = 0
+      template_renders.each do |virtual_path, locals|
+        debug "precompiling: #{virtual_path}"
+
+        templates = @loader.load_template(virtual_path, locals)
+        count += templates.count
+
+        debug "  No templates found at #{virtual_path}" if templates.empty?
+      end
+
+      debug "Precompiled #{count} Templates"
+    end
+
+    def run_from_cache(cache_data)
+      cached_renders = cache_data["template_renders"]
+      compiled_templates = cache_data["compiled_templates"] || {}
+
+      count = 0
+      cached_renders.each do |virtual_path, locals|
+        debug "precompiling (cached): #{virtual_path}"
+
+        templates = @loader.load_template(virtual_path, locals, compiled_cache: compiled_templates)
+        count += templates.count
+
+        debug "  No templates found at #{virtual_path}" if templates.empty?
+      end
+
+      debug "Precompiled #{count} Templates (from cache)"
+    end
+
+    def write_cache(cache)
+      compiled_templates = @loader.compiled_templates
+
+      source_checksums = {}
+      @scanners.each do |scanner|
+        source_checksums.merge!(scanner.source_checksums)
+      end
+
+      cache.write(
+        template_renders: template_renders,
+        compiled_templates: compiled_templates,
+        source_checksums: source_checksums
+      )
+
+      debug "Wrote precompiler cache to #{cache.cache_path}"
+    end
 
     def debug(msg)
       puts msg if @verbose
