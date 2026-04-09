@@ -1,7 +1,17 @@
+require "actionview_precompiler/cache"
+
 module ActionviewPrecompiler
   class HelperScanner
     def initialize(dir)
       @dir = dir
+    end
+
+    def source_checksums
+      checksums = {}
+      each_helper do |fullpath|
+        checksums[fullpath] = Cache.file_mtime(fullpath)
+      end
+      checksums
     end
 
     def template_renders
