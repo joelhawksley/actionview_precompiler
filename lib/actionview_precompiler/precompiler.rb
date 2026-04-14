@@ -34,7 +34,7 @@ module ActionviewPrecompiler
 
     def run
       if @cache_path
-        cache = Cache.new(@cache_path)
+        cache = Cache.new(@cache_path, verbose: @verbose)
         if cache_data = cache.read
           run_from_cache(cache_data)
         else

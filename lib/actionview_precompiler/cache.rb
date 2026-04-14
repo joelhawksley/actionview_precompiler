@@ -7,8 +7,9 @@ module ActionviewPrecompiler
 
     attr_reader :cache_path
 
-    def initialize(cache_path)
+    def initialize(cache_path, verbose: false)
       @cache_path = cache_path
+      @verbose = verbose
     end
 
     def write(template_renders:, compiled_templates:, source_checksums:)
@@ -39,9 +40,22 @@ module ActionviewPrecompiler
     private
 
     def valid?(data)
-      data["version"] == CACHE_VERSION &&
-        data["ruby_version"] == RUBY_VERSION &&
-        checksums_match?(data["source_checksums"])
+      unless data["version"] == CACHE_VERSION
+        debug "Cache invalid: version mismatch (got #{data["version"]}, expected #{CACHE_VERSION})"
+        return false
+      end
+
+      unless data["ruby_version"] == RUBY_VERSION
+        debug "Cache invalid: ruby_version mismatch (got #{data["ruby_version"]}, expected #{RUBY_VERSION})"
+        return false
+      end
+
+      unless checksums_match?(data["source_checksums"])
+        debug "Cache invalid: source checksums mismatch"
+        return false
+      end
+
+      true
     end
 
     def checksums_match?(checksums)
@@ -50,6 +64,10 @@ module ActionviewPrecompiler
       checksums.all? do |path, expected_mtime|
         File.exist?(path) && Cache.file_mtime(path) == expected_mtime
       end
+    end
+
+    def debug(msg)
+      puts msg if @verbose
     end
   end
 end
