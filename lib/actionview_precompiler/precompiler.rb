@@ -99,17 +99,9 @@ module ActionviewPrecompiler
     end
 
     def write_cache(cache)
-      compiled_templates = @loader.compiled_templates
-
-      source_checksums = {}
-      @scanners.each do |scanner|
-        source_checksums.merge!(scanner.source_checksums)
-      end
-
       cache.write(
         template_renders: template_renders,
-        compiled_templates: compiled_templates,
-        source_checksums: source_checksums
+        compiled_templates: @loader.compiled_templates
       )
 
       debug "Wrote precompiler cache to #{cache.cache_path}"

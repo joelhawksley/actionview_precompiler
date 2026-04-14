@@ -1,5 +1,4 @@
 require "actionview_precompiler/template_file"
-require "actionview_precompiler/cache"
 
 module ActionviewPrecompiler
   class TemplateScanner
@@ -7,14 +6,6 @@ module ActionviewPrecompiler
 
     def initialize(view_dir)
       @view_dir = view_dir
-    end
-
-    def source_checksums
-      checksums = {}
-      each_template do |template|
-        checksums[template.fullpath] = Cache.file_mtime(template.fullpath)
-      end
-      checksums
     end
 
     def template_renders

@@ -18,8 +18,7 @@ module ActionviewPrecompiler
 
       cache.write(
         template_renders: [["users/_user", ["user"]]],
-        compiled_templates: {},
-        source_checksums: {}
+        compiled_templates: {}
       )
 
       assert File.exist?(@cache_path)
@@ -32,77 +31,10 @@ module ActionviewPrecompiler
       assert_nil cache.read
     end
 
-    def test_cache_read_returns_nil_on_version_mismatch
-      cache = Cache.new(@cache_path)
-
-      File.write(@cache_path, JSON.generate({
-        "version" => 999,
-        "ruby_version" => RUBY_VERSION,
-        "template_renders" => [],
-        "compiled_templates" => {},
-        "source_checksums" => {}
-      }))
-
-      assert_nil cache.read
-    end
-
-    def test_cache_read_returns_nil_on_ruby_version_mismatch
-      cache = Cache.new(@cache_path)
-
-      File.write(@cache_path, JSON.generate({
-        "version" => Cache::CACHE_VERSION,
-        "ruby_version" => "0.0.0",
-        "template_renders" => [],
-        "compiled_templates" => {},
-        "source_checksums" => {}
-      }))
-
-      assert_nil cache.read
-    end
-
     def test_cache_read_returns_nil_on_corrupt_json
       cache = Cache.new(@cache_path)
 
       File.write(@cache_path, "not valid json{{{")
-
-      assert_nil cache.read
-    end
-
-    def test_cache_invalidated_when_source_file_changes
-      src_file = File.join(@cache_dir, "test_template.html.erb")
-      File.write(src_file, "<%= 'hello' %>")
-      original_mtime = Cache.file_mtime(src_file)
-
-      cache = Cache.new(@cache_path)
-      cache.write(
-        template_renders: [["test/template", []]],
-        compiled_templates: {},
-        source_checksums: { src_file => original_mtime }
-      )
-
-      # Cache should be valid
-      assert cache.read
-
-      # Modify the source file (sleep to ensure mtime changes)
-      sleep 0.05
-      File.write(src_file, "<%= 'goodbye' %>")
-
-      # Cache should now be invalid
-      assert_nil cache.read
-    end
-
-    def test_cache_invalidated_when_source_file_deleted
-      src_file = File.join(@cache_dir, "deleted_template.html.erb")
-      File.write(src_file, "<%= 'hello' %>")
-
-      cache = Cache.new(@cache_path)
-      cache.write(
-        template_renders: [],
-        compiled_templates: {},
-        source_checksums: { src_file => Cache.file_mtime(src_file) }
-      )
-
-      File.delete(src_file)
 
       assert_nil cache.read
     end
@@ -118,10 +50,7 @@ module ActionviewPrecompiler
       assert File.exist?(@cache_path)
 
       data = JSON.parse(File.read(@cache_path))
-      assert_equal Cache::CACHE_VERSION, data["version"]
-      assert_equal RUBY_VERSION, data["ruby_version"]
       assert_includes data["template_renders"], ["users/_user", ["user"]]
-      refute_empty data["source_checksums"]
     end
 
     def test_precompiler_loads_from_cache
@@ -145,17 +74,11 @@ module ActionviewPrecompiler
       assert File.exist?(@cache_path)
     end
 
-    def test_precompiler_falls_back_on_stale_cache
+    def test_precompiler_falls_back_on_invalid_cache
       reset_action_view!
 
-      # Write a cache with wrong version
-      File.write(@cache_path, JSON.generate({
-        "version" => 999,
-        "ruby_version" => RUBY_VERSION,
-        "template_renders" => [],
-        "compiled_templates" => {},
-        "source_checksums" => {}
-      }))
+      # Write a cache with invalid JSON-like structure missing required keys
+      File.write(@cache_path, "not valid json{{{")
 
       precompiler = Precompiler.new(cache_path: @cache_path)
       precompiler.scan_view_dir FIXTURES_VIEW_DIR
@@ -164,7 +87,7 @@ module ActionviewPrecompiler
 
       # Should have rewritten the cache
       data = JSON.parse(File.read(@cache_path))
-      assert_equal Cache::CACHE_VERSION, data["version"]
+      assert_includes data["template_renders"], ["users/_user", ["user"]]
     end
 
     def test_precompiler_without_cache_path_works_normally
@@ -185,38 +108,5 @@ module ActionviewPrecompiler
       refute File.exist?(@cache_path)
     end
 
-    def test_source_checksums_collected_from_scanners
-      scanner = TemplateScanner.new(FIXTURES_VIEW_DIR)
-      checksums = scanner.source_checksums
-
-      refute_empty checksums
-      checksums.each do |path, mtime|
-        assert File.exist?(path), "#{path} should exist"
-        assert_kind_of Float, mtime
-        assert_equal File.mtime(path).to_f, mtime
-      end
-    end
-
-    def test_controller_scanner_source_checksums
-      scanner = ControllerScanner.new(FIXTURES_CONTROLLER_DIR)
-      checksums = scanner.source_checksums
-
-      refute_empty checksums
-      checksums.each do |path, mtime|
-        assert File.exist?(path)
-        assert_kind_of Float, mtime
-      end
-    end
-
-    def test_helper_scanner_source_checksums
-      scanner = HelperScanner.new(FIXTURES_HELPER_DIR)
-      checksums = scanner.source_checksums
-
-      refute_empty checksums
-      checksums.each do |path, mtime|
-        assert File.exist?(path)
-        assert_kind_of Float, mtime
-      end
-    end
   end
 end

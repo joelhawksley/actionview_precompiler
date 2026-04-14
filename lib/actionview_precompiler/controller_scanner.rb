@@ -1,19 +1,9 @@
-require "actionview_precompiler/cache"
-
 module ActionviewPrecompiler
   class ControllerScanner
     attr_reader :controller_dir
 
     def initialize(controller_dir)
       @controller_dir = controller_dir
-    end
-
-    def source_checksums
-      checksums = {}
-      each_controller do |path, fullpath|
-        checksums[fullpath] = Cache.file_mtime(fullpath)
-      end
-      checksums
     end
 
     def template_renders
