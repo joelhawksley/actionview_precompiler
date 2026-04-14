@@ -46,18 +46,12 @@ module ActionviewPrecompiler
 
       identifier = template.identifier
 
-      # Capture handler output by wrapping the handler
-      handler_output = nil
-      original_handler = template.handler
-      capturing_handler = ->(_template, _source) {
-        handler_output = original_handler.call(_template, _source)
-      }
-      template.instance_variable_set(:@handler, capturing_handler)
-
-      source = template.send(:compiled_source)
-
-      # Restore original handler
-      template.instance_variable_set(:@handler, original_handler)
+      # Capture handler output by calling the handler directly
+      handler_output = begin
+        template.handler.call(template, template.source)
+      rescue
+        nil
+      end
 
       if File.exist?(identifier) && handler_output
         @compiled_templates[identifier] = {
@@ -66,6 +60,8 @@ module ActionviewPrecompiler
       end
 
       return unless eval_enabled
+
+      source = template.send(:compiled_source)
 
       mod = @view_context_class.compiled_method_container
 
