@@ -13,12 +13,12 @@ module ActionviewPrecompiler
       @compiled_templates = {}
     end
 
-    def load_template(virtual_path, locals, compiled_cache: nil, compile: true)
+    def load_template(virtual_path, locals, compiled_cache: nil, eval_enabled: true)
       templates = find_all_templates(virtual_path, locals)
       templates.each do |template|
         next if compiled_cache && use_cached_source(template, compiled_cache)
 
-        build(template, compile: compile)
+        build(template, eval_enabled: eval_enabled)
       end
     end
 
@@ -40,7 +40,7 @@ module ActionviewPrecompiler
       end
     end
 
-    def build(template, compile: true)
+    def build(template, eval_enabled: true)
       return if template.instance_variable_get(:@compiled)
 
       identifier = template.identifier
@@ -54,7 +54,7 @@ module ActionviewPrecompiler
         }
       end
 
-      next unless compile
+      return unless eval_enabled
 
       mod = @view_context_class.compiled_method_container
 

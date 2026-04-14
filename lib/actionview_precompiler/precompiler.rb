@@ -38,7 +38,7 @@ module ActionviewPrecompiler
         if cache_data = cache.read
           run_from_cache(cache_data)
         else
-          run_fresh(compile: false)
+          run_fresh(eval_enabled: false)
           write_cache(cache)
         end
       else
@@ -64,12 +64,12 @@ module ActionviewPrecompiler
 
     private
 
-    def run_fresh(compile: true)
+    def run_fresh(eval_enabled: true)
       count = 0
       template_renders.each do |virtual_path, locals|
         debug "precompiling: #{virtual_path}"
 
-        templates = @loader.load_template(virtual_path, locals, compile: compile)
+        templates = @loader.load_template(virtual_path, locals, eval_enabled: eval_enabled)
         count += templates.count
 
         debug "  No templates found at #{virtual_path}" if templates.empty?

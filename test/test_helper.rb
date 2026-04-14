@@ -7,6 +7,7 @@ FIXTURES_CONTROLLER_DIR = File.join(FIXTURES_DIR, "controllers")
 FIXTURES_HELPER_DIR = File.join(FIXTURES_DIR, "helpers")
 
 require "minitest/autorun"
+require "pry"
 
 ActionController::Base.view_paths = FIXTURES_VIEW_DIR
 
