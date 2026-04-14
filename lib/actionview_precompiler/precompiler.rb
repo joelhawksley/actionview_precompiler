@@ -36,12 +36,15 @@ module ActionviewPrecompiler
       if @cache_path
         cache = Cache.new(@cache_path, verbose: @verbose)
         if cache_data = cache.read
+          debug "Cache hit: #{@cache_path}"
           run_from_cache(cache_data)
         else
+          debug "Cache miss: #{@cache_path}"
           run_fresh(eval_enabled: false)
           write_cache(cache)
         end
       else
+        debug "No cache path configured"
         run_fresh
       end
     end
