@@ -3,7 +3,7 @@ require "fileutils"
 
 module ActionviewPrecompiler
   class Cache
-    CACHE_VERSION = 1
+    CACHE_VERSION = 2
 
     attr_reader :cache_path
 
@@ -54,6 +54,8 @@ module ActionviewPrecompiler
         debug "Cache invalid: source checksums mismatch"
         return false
       end
+
+      debug "Cache valid"
 
       true
     end

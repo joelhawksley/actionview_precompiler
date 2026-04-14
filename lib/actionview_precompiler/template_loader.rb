@@ -44,13 +44,23 @@ module ActionviewPrecompiler
       return if template.instance_variable_get(:@compiled)
 
       identifier = template.identifier
-      source = template.send(:compiled_source)
-      method_name = template.method_name
 
-      if File.exist?(identifier)
+      # Capture handler output by wrapping the handler
+      handler_output = nil
+      original_handler = template.handler
+      capturing_handler = ->(_template, _source) {
+        handler_output = original_handler.call(_template, _source)
+      }
+      template.instance_variable_set(:@handler, capturing_handler)
+
+      source = template.send(:compiled_source)
+
+      # Restore original handler
+      template.instance_variable_set(:@handler, original_handler)
+
+      if File.exist?(identifier) && handler_output
         @compiled_templates[identifier] = {
-          "source" => source,
-          "method_name" => method_name
+          "handler_output" => handler_output
         }
       end
 
@@ -73,14 +83,21 @@ module ActionviewPrecompiler
       cached = compiled_cache[identifier]
       return false unless cached
 
-      mod = @view_context_class.compiled_method_container
+      # Swap handler to return cached output, letting Rails
+      # generate compiled_source with the correct method_name
+      original_handler = template.handler
+      template.instance_variable_set(:@handler, ->(_t, _s) { cached["handler_output"] })
 
       begin
-        mod.module_eval(cached["source"], identifier, 0)
+        source = template.send(:compiled_source)
+        mod = @view_context_class.compiled_method_container
+        mod.module_eval(source, identifier, 0)
       rescue SyntaxError
+        template.instance_variable_set(:@handler, original_handler)
         return false
       end
 
+      template.instance_variable_set(:@handler, original_handler)
       template.instance_variable_set(:@compiled, true)
 
       true
