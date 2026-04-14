@@ -49,7 +49,8 @@ module ActionviewPrecompiler
       # Capture handler output by calling the handler directly
       handler_output = begin
         template.handler.call(template, template.source)
-      rescue
+      rescue => e
+        debug "  handler capture error for #{identifier}: #{e.class}: #{e.message}"
         nil
       end
 
