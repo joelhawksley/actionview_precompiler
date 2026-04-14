@@ -8,7 +8,7 @@ module ActionviewPrecompiler
   class Precompiler
     def initialize(verbose: false, cache_path: nil)
       @scanners = []
-      @loader = TemplateLoader.new
+      @loader = TemplateLoader.new(verbose: verbose)
       @verbose = verbose
       @static_templates = []
       @template_renders = nil

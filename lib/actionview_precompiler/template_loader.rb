@@ -6,11 +6,12 @@ module ActionviewPrecompiler
 
     attr_reader :compiled_templates
 
-    def initialize
+    def initialize(verbose: false)
       target = ActionController::Base
       @lookup_context = ActionView::LookupContext.new(target.view_paths)
       @view_context_class = target.view_context_class
       @compiled_templates = {}
+      @verbose = verbose
     end
 
     def load_template(virtual_path, locals, compiled_cache: nil, eval_enabled: true)
@@ -78,10 +79,21 @@ module ActionviewPrecompiler
       template.instance_variable_set(:@compiled, true)
     end
 
+    def debug(msg)
+      puts msg if @verbose
+    end
+
     def use_cached_source(template, compiled_cache)
       identifier = template.identifier
       cached = compiled_cache[identifier]
-      return false unless cached
+      unless cached
+        debug "  cache miss (no entry): #{identifier}"
+        return false
+      end
+      unless cached["handler_output"]
+        debug "  cache miss (nil handler_output): #{identifier}"
+        return false
+      end
 
       # Swap handler to return cached output, letting Rails
       # generate compiled_source with the correct method_name
