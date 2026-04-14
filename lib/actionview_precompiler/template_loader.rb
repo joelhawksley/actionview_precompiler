@@ -16,12 +16,10 @@ module ActionviewPrecompiler
     def load_template(virtual_path, locals, compiled_cache: nil)
       templates = find_all_templates(virtual_path, locals)
       templates.each do |template|
-        if compiled_cache && use_cached_source(template, compiled_cache)
-          # Used cached compiled source, skip handler call
-        else
-          template.send(:compile!, @view_context_class)
-          capture_compiled_source(template)
-        end
+        next if compiled_cache && use_cached_source(template, compiled_cache)
+
+        template.send(:compile!, @view_context_class)
+        capture_compiled_source(template)
       end
     end
 
