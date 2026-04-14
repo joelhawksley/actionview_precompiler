@@ -13,8 +13,6 @@ module ActionviewPrecompiler
       FileUtils.rm_rf(@cache_dir)
     end
 
-    # --- Cache class unit tests ---
-
     def test_cache_write_and_read
       cache = Cache.new(@cache_path)
 
@@ -109,8 +107,6 @@ module ActionviewPrecompiler
       assert_nil cache.read
     end
 
-    # --- Integration with Precompiler ---
-
     def test_precompiler_writes_cache
       reset_action_view!
 
@@ -164,18 +160,9 @@ module ActionviewPrecompiler
       precompiler = Precompiler.new(cache_path: @cache_path)
       precompiler.scan_view_dir FIXTURES_VIEW_DIR
 
-      compiled_templates = []
-      callback = ->(name, start, finish, id, payload) do
-        compiled_templates << payload[:virtual_path]
-      end
-      ActiveSupport::Notifications.subscribed(callback, "!compile_template.action_view") do
-        precompiler.run
-      end
+      precompiler.run
 
-      # Should have fallen back to fresh compilation
-      assert_includes compiled_templates, "users/_user"
-
-      # And should have rewritten the cache
+      # Should have rewritten the cache
       data = JSON.parse(File.read(@cache_path))
       assert_equal Cache::CACHE_VERSION, data["version"]
     end

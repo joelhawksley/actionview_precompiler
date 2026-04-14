@@ -13,13 +13,12 @@ module ActionviewPrecompiler
       @compiled_templates = {}
     end
 
-    def load_template(virtual_path, locals, compiled_cache: nil)
+    def load_template(virtual_path, locals, compiled_cache: nil, compile: true)
       templates = find_all_templates(virtual_path, locals)
       templates.each do |template|
         next if compiled_cache && use_cached_source(template, compiled_cache)
 
-        template.send(:compile!, @view_context_class)
-        capture_compiled_source(template)
+        build(template, compile: compile)
       end
     end
 
@@ -41,25 +40,32 @@ module ActionviewPrecompiler
       end
     end
 
-    def capture_compiled_source(template)
+    def build(template, compile: true)
+      return if template.instance_variable_get(:@compiled)
+
       identifier = template.identifier
-      return unless File.exist?(identifier)
+      source = template.send(:compiled_source)
+      method_name = template.method_name
 
-      # Re-generate the compiled source by calling the handler directly.
-      # This mirrors what ActionView::Template#compile does internally.
-      source = template.source
-      source = source.to_s if source.respond_to?(:to_s) && !source.is_a?(String)
-      code = template.handler.call(template, source)
+      if File.exist?(identifier)
+        @compiled_templates[identifier] = {
+          "source" => source,
+          "method_name" => method_name
+        }
+      end
 
-      method_name = template.send(:method_name)
-      locals_code = template.send(:locals_code)
+      next unless compile
 
-      compiled_source = "def #{method_name}(local_assigns, output_buffer)\n  @virtual_path = #{template.virtual_path.inspect};#{locals_code};#{code}\nend"
+      mod = @view_context_class.compiled_method_container
 
-      @compiled_templates[identifier] = {
-        "source" => compiled_source,
-        "method_name" => method_name
-      }
+      ActiveSupport::Notifications.instrument(
+        "!compile_template.action_view",
+        virtual_path: template.virtual_path,
+        identifier: identifier
+      ) do
+        mod.module_eval(source, identifier, 0)
+      end
+      template.instance_variable_set(:@compiled, true)
     end
 
     def use_cached_source(template, compiled_cache)
