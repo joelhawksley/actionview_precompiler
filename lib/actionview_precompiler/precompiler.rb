@@ -31,6 +31,8 @@ module ActionviewPrecompiler
     end
 
     def run
+      @loader.eager_load_resolvers!
+
       count = 0
       template_renders.each do |virtual_path, locals|
         debug "precompiling: #{virtual_path}"
