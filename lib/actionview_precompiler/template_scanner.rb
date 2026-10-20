@@ -12,6 +12,10 @@ module ActionviewPrecompiler
       template_renders = []
 
       each_template do |template|
+        if strict_locals?(template)
+          template_renders << [template.virtual_path, []]
+        end
+
         parser = TemplateParser.new(template.fullpath)
         parser.render_calls.each do |render_call|
           virtual_path = render_call.virtual_path
@@ -31,6 +35,11 @@ module ActionviewPrecompiler
     end
 
     private
+
+    def strict_locals?(template)
+      defined?(ActionView::Template::STRICT_LOCALS_REGEX) &&
+        File.read(template.fullpath).match?(ActionView::Template::STRICT_LOCALS_REGEX)
+    end
 
     def each_template
       Dir["**/*", base: view_dir].sort.map do |file|

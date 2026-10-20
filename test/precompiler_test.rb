@@ -29,6 +29,25 @@ module ActionviewPrecompiler
       assert_includes compiled_templates, "users/_user"
     end
 
+    def test_precompiles_strict_locals_templates
+      skip unless defined?(ActionView::Template::STRICT_LOCALS_REGEX)
+      reset_action_view!
+
+      precompiler = Precompiler.new
+      precompiler.scan_view_dir FIXTURES_VIEW_DIR
+
+      compiled_templates = []
+      callback = ->(name, start, finish, id, payload) do
+        compiled_templates << payload[:virtual_path]
+      end
+      ActiveSupport::Notifications.subscribed(callback, "!compile_template.action_view") do
+        precompiler.run
+      end
+
+      # users/_strict is never rendered, but declares strict locals
+      assert_includes compiled_templates, "users/_strict"
+    end
+
     def test_precompiles_static_paths
       reset_action_view!
 
