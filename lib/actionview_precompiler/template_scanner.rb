@@ -2,10 +2,11 @@ require "actionview_precompiler/template_file"
 
 module ActionviewPrecompiler
   class TemplateScanner
-    attr_reader :view_dir
+    attr_reader :view_dir, :strict_locals_paths
 
     def initialize(view_dir)
       @view_dir = view_dir
+      @strict_locals_paths = []
     end
 
     def template_renders
@@ -13,6 +14,7 @@ module ActionviewPrecompiler
 
       each_template do |template|
         if strict_locals?(template)
+          @strict_locals_paths << template.virtual_path
           template_renders << [template.virtual_path, []]
         end
 
